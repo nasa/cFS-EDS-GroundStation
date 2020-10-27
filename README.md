@@ -1,6 +1,6 @@
 # cFS-EDS-GroundStation
 
-This is a Pyton based ground station that interfaces with an Electronic Data Sheets supported Core Flight Systems instance.  
+This is a Python based ground station that interfaces with an Electronic Data Sheets supported Core Flight Systems instance.  
 Also, there are several utility python scripts that provide basic Telemetry and Telecommand functionality in a non-GUI format.
 
 The user's manual can be found at docs/cFS-EDS-GroundStation Users Manual.docx
