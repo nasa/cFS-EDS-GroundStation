@@ -52,30 +52,30 @@ def HexString(string, hex_per_line):
     return hex_string
 
 
-def TlmDisplayString(base_object, base_name, message=''):
+def TlmDisplayString(eds_db, base_object, base_name, message=''):
     '''
     Generates a string to display in the telemetry log that shows the contents
     of a telemetry message object
 
     Inputs:
+    eds_db - EDS database
     base_object - the decoded EDS telemetry object
     base_name - the base EDS name of the telemetry object
     message - string used in the recursion to keep track of the object's structure
     '''
     result = message
-    try:
-        # Test if array indexing works
-        test = base_object[0]
+    # Array display string
+    if (eds_db.IsArray(base_object)):
         for i in range(len(base_object)):
-            result = TlmDisplayString(base_object[i], f"{base_name}[{i}]", result)
-    except TypeError:
-        # Test if base_object is a structure
-        try:
-            for item in base_object:
-                result = TlmDisplayString(item[1], f"{base_name}.{item[0]}", result)
-        # Neither an array nor structure, print out the entry
-        except TypeError:
-            result += '{:<60} = {}\n'.format(base_name, base_object)
+            result = TlmDisplayString(eds_db, base_object[i], f"{base_name}[{i}]", result)
+    # Container display string
+    elif (eds_db.IsContainer(base_object)):
+        for item in base_object:
+            result = TlmDisplayString(eds_db, item[1], f"{base_name}.{item[0]}", result)
+    # Everything else (number, enumeration, string, etc.)
+    else:
+        result += '{:<60} = {}\n'.format(base_name, base_object)
+
     return result
 
 
@@ -140,19 +140,25 @@ class DataModel(object):
         self.subcommand_keys = list(self.subcommand_dict.keys())
 
 
-    def AddTlm(self, host, datagram, topic_id, eds_entry, eds_object):
+    def AddTlm(self, eds_db, host, datagram, decode_output):
         '''
         Generates a telemetry indicator string based on the instance and topic names.
         Sorts the raw message into the associated data array (or creates one if it doesn't exist)
         Display strings are generated and sent to the Viewer to update in the display
 
         Inputs:
+        eds_db - EDS Database
         host - Information where the telemetry message came from
-        datagram - raw telemetry message as a bytes string
-        topic_id - The Topic ID associated with the telemetry message
-        eds_entry - The EDS function to create an object associated with the telemetry message
-        eds_object - The decoded EDS object
+        datagram - Raw telemetry message as a bytes string
+        decode_output - Tuple containing the output from control.DecodeMessage:
+            topic_id - The Topic ID associated with the telemetry message
+            eds_entry - The EDS function to create an object associated with the telemetry message
+            eds_object - The decoded EDS object
         '''
+        topic_id = decode_output[0]
+        eds_entry = decode_output[1]
+        eds_object = decode_output[2]
+
         instance_index = self.instance_values.index(int(eds_object.Hdr.ApidQ.SubsystemId))
         instance_name = self.instance_keys[instance_index]
         topic_name = self.telemetry_topic_keys[self.telemetry_topic_values.index(topic_id)]
@@ -170,7 +176,7 @@ class DataModel(object):
         disp_start = f"Telemetry Packet From: {host[0]}:UDP{host[1]}, {8*len(datagram)} bits :\n"
         message_hex_dump = HexString(datagram.hex(), 16)
         topic_str = f"Instance:Topic = {tlm_instance_topic}\n"
-        object_str = TlmDisplayString(eds_object, eds_entry.Name)
+        object_str = TlmDisplayString(eds_db, eds_object, eds_entry.Name)
         tlm_message = disp_start + message_hex_dump + '\n' + topic_str + object_str + '\n'
 
         return new_tlm_type, tlm_message

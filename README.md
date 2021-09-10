@@ -5,42 +5,51 @@ Also, there are several utility python scripts that provide basic Telemetry and 
 
 The user's manual can be found at docs/cFS-EDS-GroundStation Users Manual.docx
 
-## Prerequisistes
+# Prerequisistes
 
   -python3-dev
   -python3-pyqt5
 
-## Configuring and running
+# Configuring and running
 
-It is recommended to use this software in conjunction with the cfe-eds-framework repository which can be found at:
+This software is designed to work with the cfe-eds-framework repository which can be found at:
 https://github.com/jphickey/cfe-eds-framework
-This software package requries the EdsLib and CFE_MissionLib python modules from that repository to run.  The build process
-also automatically configues these files with the defined mission name.
 
-##
+To incorporate the cFS-EDS-GroundStation software within this version of core flight, download the repository to the
+${CFS_HOME}/tools/ directory and add the subdirectory in the cfs build process (cfe/cmake/mission_build.cmake)
 
-First, the following cmake variables need to be turned on for both the GroundStation or assorted utilities to work.
+'''
+  # Include all the EDS libraries and tools which are built for the host system
+  include_directories(${MISSION_BINARY_DIR}/inc)
+  add_subdirectory(${MISSION_SOURCE_DIR}/tools/eds/edslib eds/edslib)
+  add_subdirectory(${MISSION_SOURCE_DIR}/tools/eds/tool   eds/tool)
+  add_subdirectory(${MISSION_SOURCE_DIR}/tools/eds/cfecfs eds/cfecfs)
+  add_subdirectory(${MISSION_SOURCE_DIR}/tools/cFS-EDS-GroundStation eds/cFS-EDS-GroundStation)
+'''
 
+To enable the build process for the cFS-EDS-GroundStation, set the CONFIGURE_CFS_EDS_GROUNDSTATION=ON cmake variable.
+This variable can be set in the root Makefile or in the CMakeCache.txt of the build directory after the "make prep" step.
+The build process automatically configures the python files with the defined mission name and outputs them
+to the ${CMAKE_BINARY_DIR}/exe/host/cFS-EDS-GroundStation/ folder.
+
+The cFS-EDS-GroundStation software requries the EdsLib and CFE_MissionLib python modules from the cfe-eds-framework repository.
+These are both built by turning on the following cmake variables:
 EDSLIB_PYTHON_BUILD_STANDALONE_MODULE:BOOL=ON
 CFE_MISSIONLIB_PYTHON_BUILD_STANDALONE_MODULE:BOOL=ON
-CONFIGURE_CFS_EDS_GROUNDSTATION:BOOL=ON
 
-The first two options will compile the python bindings for EdsLib and CFE_MissionLib respectively.
-The third configures the python scripts in this folder with the mission name defined in the cFS build process
-and output the scripts to the ${CFS_HOME}/build/exe/host/cFS-EDS-GroundStation/ folder.
-
-The folder where the python modules get installed is:
-${CFS_HOME}/build/exe/lib/python
+The folder where the python modules are installed is:
+${CMAKE_BINARY_DIR}/exe/lib/python
 
 This folder needs to be added to the PYTHON_PATH environment variable so the modules can be imported into Python.
 The folder that contains EdsLib and CFE_MissionLib .so files also needs to be added to the LD_LIBRARY_PATH
 enviroment variable so Python can load these libraries.  For example the following lines can be added to ~/.bashrc
 
-CFS_HOME = /path/to/cfs/directory
-export PYTHONPATH=$PYTHONPATH:$CFS_HOME/build/exe/lib/python
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$CFS_HOME/build/exe/lib
+CFS_BUILD = /path/to/cfs/build/directory/
+export PYTHONPATH=$PYTHONPATH:$CFS_BUILD/exe/lib/python
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$CFS_BUILD/exe/lib
 
-With this set the cFS-EDS-GroundStation can be run with the following command
+
+With everything set up the cFS-EDS-GroundStation can be run with the following command:
 
 python3 cFS-EDS-GroundStation.py
 
@@ -62,3 +71,4 @@ python3 convert_tlm_file.py --file=<filename>   (recommended as this allows tab 
 
 This script takes the binary telementry files from the Telemetry System of the cFS-EDS-GroundStation, reads through all
 of the messages in the file, and writes the decoded packet information in a csv fie of the same base name.
+This csv file can be imported into any Excel type program for further analysis.
