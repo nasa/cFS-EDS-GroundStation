@@ -58,28 +58,27 @@ def decode_message(mission, intf_db, raw_message):
     return (eds_entry, eds_object)
 
 
-def display_entries(base_object, base_name):
+def display_entries(eds_db, base_object, base_name):
     '''
     Recursive function that iterates over an EDS object and prints the contents of
     the sub-entries to the screen
 
     Inputs:
+    eds_db - EDS Database
     base_object - The EDS object to iterate over
     base_name - The base name for the sub-entities printed to the screen
     '''
-    try:
-        # Test if array indexing works
-        test = base_object[0]
+    # Array display string
+    if (eds_db.IsArray(base_object)):
         for i in range(len(base_object)):
-            display_entries(base_object[i], f"{base_name}[{i}]")
-    except TypeError:
-        # Test if base_object is a structure
-        try:
-            for item in base_object:
-                display_entries(item[1], f"{base_name}.{item[0]}")
-        # Neither an array nor structure, print out the entry
-        except TypeError:
-            print('{:<60} = {}'.format(base_name, base_object))
+            display_entries(eds_db, base_object[i], f"{base_name}[{i}]")
+    # Container display string
+    elif (eds_db.IsContainer(base_object)):
+        for item in base_object:
+            display_entries(eds_db, item[1], f"{base_name}.{item[0]}")
+    # Everything else (number, enumeration, string, etc.)
+    else:
+        print('{:<60} = {}'.format(base_name, base_object))
 
 
 def hex_string(string, bytes_per_line):
@@ -151,7 +150,7 @@ def main(argv):
             print(f"Telemetry Packet From: {host[0]}:UDP{host[1]}, {8*len(datagram)} bits :")
             print(hex_string(datagram.hex(), 16))
             eds_entry, eds_object = decode_message(mission, intf_db, datagram)
-            display_entries(eds_object, eds_entry.Name)
+            display_entries(eds_db, eds_object, eds_entry.Name)
             print()
             print()
 

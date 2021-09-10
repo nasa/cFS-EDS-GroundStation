@@ -68,12 +68,13 @@ def hex_string(string, bytes_per_line):
     return hex_str
 
 
-def get_payload_struct(base_entry, base_object, base_name):
+def get_payload_struct(eds_db, base_entry, base_object, base_name):
     '''
     Recursive function that goes through an EDS object structure (arrays and structs)
     To get down to the fundamental objects (ints, strings, enumerations).
 
     Inputs:
+    eds_db - EDS database
     base_entry - EDS fucntion to create the base_object
     base_object - EDS Object that is iterated over to find the structure
     base_name - Name used in the recursion to get the full name of a fundamental object
@@ -81,40 +82,48 @@ def get_payload_struct(base_entry, base_object, base_name):
     Outputs:
     EDS Object data structure
     '''
-    try:
-        # Test if array indexing works
+    struct = {}
+
+    # Arrays
+    if (eds_db.IsArray(base_object)):
+
+        # Get the type of an array element
         array_type_split = str(type(base_object[0])).split("'")
         array_entry = EdsLib.DatabaseEntry(array_type_split[1], array_type_split[3])
         array_object = array_entry()
 
+        # Loop over all the aray elements
         struct = []
         struct_name = base_name + array_entry.Name
         for i in range(len(base_object)):
             struct_name = f"{base_name}[{i}]"
-            array_struct = get_payload_struct(array_entry, array_object, struct_name)
+            array_struct = get_payload_struct(eds_db, array_entry, array_object, struct_name)
             struct.append(array_struct)
 
-    except TypeError:
-        struct = {}
-        # Test if base_object is a structure
-        try:
-            for subobj in base_object:
-                for subentry in base_entry:
-                    if subobj[0] == subentry[0]:
-                        entry_eds = EdsLib.DatabaseEntry(subentry[1], subentry[2])
-                        struct_name = f"{base_name}.{subobj[0]}"
-                        struct[subobj[0]] = get_payload_struct(entry_eds, subobj[1], struct_name)
+    # Containers
+    elif (eds_db.IsContainer(base_object)):
 
-        # Neither an array nor structure
-        except TypeError:
-            # Test if base_object is an enumeration
-            try:
-                enum_dict = {}
-                for enum in base_entry:
-                    enum_dict[enum[0]] = enum[1]
-                    struct = (base_name, base_entry, 'enum', enum_dict)
-            except TypeError:
-                struct = (base_name, base_entry, 'entry', None)
+        # Iterate over the subobjects within the container
+        for subobj in base_object:
+            for subentry in base_entry:
+                if subobj[0] == subentry[0]:
+                    entry_eds = EdsLib.DatabaseEntry(subentry[1], subentry[2])
+                    struct_name = f"{base_name}.{subobj[0]}"
+                    struct[subobj[0]] = get_payload_struct(eds_db, entry_eds, subobj[1], struct_name)
+
+    # Enumeration
+    elif (eds_db.IsEnum(base_entry)):
+
+        struct = ()
+        enum_dict = {}
+        # Iterate over the Enumeration labels
+        for enum in base_entry:
+            enum_dict[enum[0]] = enum[1]
+            struct = (base_name, base_entry, 'enum', enum_dict)
+
+    # Anything left over uses an entry field
+    else:
+        struct = (base_name, base_entry, 'entry', None)
 
     return struct
 
@@ -157,12 +166,13 @@ def set_payload_values(structure):
     return result
 
 
-def get_payload(cmd_entry):
+def get_payload(eds_db, cmd_entry):
     '''
     Iterating over the command entry object, check to see if a payload is needed.
     If so, the user is prompted to fill in the required payload values.
 
     Inputs:
+    eds_db - EDS database
     cmd_entry - EDS function to create the command object associated with the topic/subcommand
 
     Outputs:
@@ -179,7 +189,7 @@ def get_payload(cmd_entry):
         payload_entry = EdsLib.DatabaseEntry(payload_item[1], payload_item[2])
         payload = payload_entry()
 
-        payload_struct = get_payload_struct(payload_entry, payload, 'Payload')
+        payload_struct = get_payload_struct(eds_db, payload_entry, payload, 'Payload')
         eds_payload = set_payload_values(payload_struct)
         payload = payload_entry(eds_payload)
     else:
@@ -317,7 +327,7 @@ def main():
     set_pubsub(intf_db, instance_id, topic_id, cmd)
 
     # Fill in the payload if required
-    payload = get_payload(cmd_entry)
+    payload = get_payload(eds_db, cmd_entry)
 
     if not payload is None:
         cmd['Payload'] = payload

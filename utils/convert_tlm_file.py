@@ -78,13 +78,14 @@ def hex_string(string, bytes_per_line):
     return hex_str
 
 
-def tlm_display_string(output_flag, base_object, base_name, message=''):
+def tlm_display_string(output_flag, eds_db, base_object, base_name, message=''):
     '''
     Recursive function that parses through an EDS object and generates a
     string representing an iteration of all the values contained in the object
 
     Inputs:
     output_flag - adusts the output string based on if printing to the screen or a csv file
+    eds_db - EDS database
     base_object - An EDS object
     base_name - The starting name of the structure to appear in the display string
     message - The cumulative result of the display string (used in recursion)
@@ -94,27 +95,26 @@ def tlm_display_string(output_flag, base_object, base_name, message=''):
     of the input object that can be printed to the screen
     '''
     result = message
-    try:
-        # Test if array indexing works
-        test = base_object[0]
+    # Array display string
+    if (eds_db.IsArray(base_object)):
         for i in range(len(base_object)):
-            result = tlm_display_string(output_flag, base_object[i], f"{base_name}[{i}]", result)
-    except TypeError:
-        # Test if base_object is a structure
-        try:
-            for item in base_object:
-                result = tlm_display_string(output_flag, item[1], f"{base_name}.{item[0]}", result)
-        # Neither an array nor structure, print out the entry
-        except TypeError:
-            if output_flag == 'screen':
-                result += '{:<60} = {}\n'.format(base_name, base_object)
-            elif output_flag == 'labels':
-                result += '{}, '.format(base_name)
-            elif output_flag == 'values':
-                result += '{}, '.format(base_object)
-            else:
-                print("Something went wrong in tlm_display_string")
-                result = ''
+            result = tlm_display_string(output_flag, eds_db, base_object[i], f"{base_name}[{i}]", result)
+    # Container display string
+    elif (eds_db.IsContainer(base_object)):
+        for item in base_object:
+            result = tlm_display_string(output_flag, eds_db, item[1], f"{base_name}.{item[0]}", result)
+    # Everything else (number, enumeration, string, etc.)
+    else:
+        if output_flag == 'screen':
+            result += '{:<60} = {}\n'.format(base_name, base_object)
+        elif output_flag == 'labels':
+            result += '{}, '.format(base_name)
+        elif output_flag == 'values':
+            result += '{}, '.format(base_object)
+        else:
+            print("Something went wrong in tlm_display_string")
+            result = ''
+
     return result
 
 
@@ -188,16 +188,16 @@ def main(argv):
     for packet in read_packet(fin, packet_length):
         topic_id, eds_entry, eds_object = decode_message(mission, intf_db, packet)
         if not labels_printed:
-            csv_string = tlm_display_string('labels', eds_object, eds_entry.Name) + '\n'
+            csv_string = tlm_display_string('labels', eds_db, eds_object, eds_entry.Name) + '\n'
             fout.write(csv_string)
             labels_printed = True
-        csv_string = tlm_display_string('values', eds_object, eds_entry.Name) + '\n'
+        csv_string = tlm_display_string('values', eds_db, eds_object, eds_entry.Name) + '\n'
         fout.write(csv_string)
         
         # Print data to the screen if desired
         if screen_flag:
             print(hex_string(packet.hex(), 16))
-            print(tlm_display_string('screen', eds_object, eds_entry.Name))
+            print(tlm_display_string('screen', eds_db, eds_object, eds_entry.Name))
 
     fin.close()
     if fout is not None:

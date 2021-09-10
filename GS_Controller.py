@@ -108,8 +108,8 @@ class TlmListener(QThread):
                     if len(datagram) < 6:
                         continue
 
-                    topic_id, eds_entry, eds_obj = self.DecodeMessage(datagram)
-                    tlm_type, message = GS_Model.data.AddTlm(host, datagram, topic_id, eds_entry, eds_obj)
+                    decode_output = self.DecodeMessage(datagram)
+                    tlm_type, message = GS_Model.data.AddTlm(control.eds_db, host, datagram, decode_output)
                     if tlm_type is None:
                         self.signal.emit('', message)
                     else:
@@ -266,12 +266,17 @@ class Controller(object):
         Outputs:
         EDS Object data structure
         '''
-        try:
-            # Test if array indexing works
+        struct = {}
+
+        # Arrays
+        if (self.eds_db.IsArray(base_object)):
+
+            # Get the type of an array element
             array_type_split = str(type(base_object[0])).split("'")
             array_entry = EdsLib.DatabaseEntry(array_type_split[1], array_type_split[3])
             array_object = array_entry()
 
+            # Loop over all the aray elements
             struct = []
             struct_name = base_name + array_entry.Name
             for i in range(len(base_object)):
@@ -279,28 +284,30 @@ class Controller(object):
                 array_struct = self.GetPayloadStruct(array_entry, array_object, struct_name)
                 struct.append(array_struct)
 
-        except TypeError:
-            struct = {}
-            # Test if base_object is a structure
-            try:
-                for subobj in base_object:
-                    for subentry in base_entry:
-                        if subobj[0] == subentry[0]:
-                            entry_eds = EdsLib.DatabaseEntry(subentry[1], subentry[2])
-                            struct_name = f"{base_name}.{subobj[0]}"
-                            struct[subobj[0]] = self.GetPayloadStruct(entry_eds, subobj[1],
-                                                                      struct_name)
+        # Containers
+        elif (self.eds_db.IsContainer(base_object)):
 
-            # Neither an array nor structure
-            except TypeError:
-                # Test if base_object is an enumeration
-                try:
-                    enum_dict = {}
-                    for enum in base_entry:
-                        enum_dict[enum[0]] = enum[1]
-                        struct = (base_name, base_entry, 'enum', enum_dict)
-                except TypeError:
-                    struct = (base_name, base_entry, 'entry', None)
+            # Iterate over the subobjects within the container
+            for subobj in base_object:
+                for subentry in base_entry:
+                    if subobj[0] == subentry[0]:
+                        entry_eds = EdsLib.DatabaseEntry(subentry[1], subentry[2])
+                        struct_name = f"{base_name}.{subobj[0]}"
+                        struct[subobj[0]] = self.GetPayloadStruct(entry_eds, subobj[1], struct_name)
+
+        # Enumeration
+        elif (self.eds_db.IsEnum(base_entry)):
+
+            struct = ()
+            enum_dict = {}
+            # Iterate over the Enumeration labels
+            for enum in base_entry:
+                enum_dict[enum[0]] = enum[1]
+                struct = (base_name, base_entry, 'enum', enum_dict)
+
+        # Anything left over uses an entry field
+        else:
+            struct = (base_name, base_entry, 'entry', None)
 
         return struct
 
