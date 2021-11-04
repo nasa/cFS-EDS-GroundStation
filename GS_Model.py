@@ -159,10 +159,15 @@ class DataModel(object):
         eds_entry = decode_output[1]
         eds_object = decode_output[2]
 
-        instance_index = self.instance_values.index(int(eds_object.Hdr.ApidQ.SubsystemId))
-        instance_name = self.instance_keys[instance_index]
         topic_name = self.telemetry_topic_keys[self.telemetry_topic_values.index(topic_id)]
-        tlm_instance_topic = f"{instance_name}:{topic_name}"
+        try:
+            instance_index = self.instance_values.index(int(eds_object.CCSDS.ApidQ.SubsystemId))
+            instance_name = self.instance_keys[instance_index]
+            
+            tlm_instance_topic = f"{instance_name}:{topic_name}"
+        
+        except AttributeError:
+            tlm_instance_topic = f"{topic_name}"
 
         if tlm_instance_topic in self.tlm_data:
             self.tlm_data[tlm_instance_topic].append(datagram)
@@ -173,7 +178,7 @@ class DataModel(object):
             new_tlm_type = tlm_instance_topic
 
 
-        disp_start = f"Telemetry Packet From: {host[0]}:UDP{host[1]}, {8*len(datagram)} bits :\n"
+        disp_start = f"Telemetry Packet From: {host[0]}:UDP {host[1]}, {8*len(datagram)} bits :\n"
         message_hex_dump = HexString(datagram.hex(), 16)
         topic_str = f"Instance:Topic = {tlm_instance_topic}\n"
         object_str = TlmDisplayString(eds_db, eds_object, eds_entry.Name)

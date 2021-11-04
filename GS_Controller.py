@@ -107,7 +107,7 @@ class TlmListener(QThread):
                     # Ignore datagram if not long enough (i.e. doesn't contain a tlm header)
                     if len(datagram) < 6:
                         continue
-
+                    
                     decode_output = self.DecodeMessage(datagram)
                     tlm_type, message = GS_Model.data.AddTlm(control.eds_db, host, datagram, decode_output)
                     if tlm_type is None:
@@ -358,7 +358,7 @@ class Controller(object):
         topic_id - The ID associated with the desired telecommand topic
         '''
         self.intf_db.SetPubSub(instance_id, topic_id, self.cmd)
-        self.cmd.Hdr.SeqFlag = 3                     # SeqFlag is hardcoded to 3 in cmdUtil.c
+        self.cmd.CCSDS.SeqFlag = 3                     # SeqFlag is hardcoded to 3 in cmdUtil.c
 
 
     def SetPayloadValues(self, structure):
@@ -388,7 +388,7 @@ class Controller(object):
         return result
 
 
-    def SendCommand(self, ip_address, instance_name, topic_name, subcommand_name, payload_values):
+    def SendCommand(self, ip_address, base_port, instance_name, topic_name, subcommand_name, payload_values):
         '''
         Sends a command message to an instance of core flight
             - Checks to make sure all required parameters are set
@@ -398,6 +398,7 @@ class Controller(object):
 
         Inputs:
         ip_address - The destination IP Address
+        base_port - The base port used to send the command
         instance_name - The name of the core flight instance to send the command message
         topic_name - The name of the Telecommand topic to send
         subcommand_name - The name of the subcommand to the telecommand topic
@@ -435,7 +436,7 @@ class Controller(object):
             self.cmd['Payload'] = self.payload
 
         cmd_packed = EdsLib.PackedObject(self.cmd)
-        port = 1234 + instance_id
+        port = base_port + instance_id - 1
 
         try:
             opened_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)

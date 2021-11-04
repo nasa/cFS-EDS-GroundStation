@@ -105,6 +105,14 @@ class CmdWindow(QWidget):
         self.hbox_ip.addWidget(self.ip_label)
         self.hbox_ip.addWidget(self.ip_textbox)
 
+        # Base UDP Port
+        self.port_label = QLabel("Base UDP Port:")
+        self.port_textbox = QLineEdit("1234")
+        
+        self.hbox_port = QHBoxLayout()
+        self.hbox_port.addWidget(self.port_label)
+        self.hbox_port.addWidget(self.port_textbox)
+
         # Instance Menu
         self.instance_label = QLabel("Instance:")
         self.instance_menu = QComboBox(self)
@@ -159,6 +167,7 @@ class CmdWindow(QWidget):
         # Overall Layout
         self.layout = QVBoxLayout()
         self.layout.addLayout(self.hbox_ip)
+        self.layout.addLayout(self.hbox_port)
         self.layout.addLayout(self.hbox_instance)
         self.layout.addLayout(self.hbox_topic)
         self.layout.addLayout(self.hbox_subcommand)
@@ -299,7 +308,12 @@ class CmdWindow(QWidget):
         display will be updated with information related to the command.
         '''
         ip_address = self.ip_textbox.text()
-
+        try:
+            base_port = int(self.port_textbox.text())
+        except ValueError:
+            print("Invalid base UDP port: using 1234")
+            base_port = 1234
+            
         valid_payload = True
         self.payload_values = {}
         for entry in self.payload_entries:
@@ -314,9 +328,9 @@ class CmdWindow(QWidget):
                 self.payload_values[entry[0]] = value
 
         if valid_payload:
-            (cmd_sent, msg, timestamp, port) = GS_Controller.control.SendCommand(ip_address, self.instance_name,
-                                                                                 self.topic_name, self.subcommand_name,
-                                                                                 self.payload_values)
+            (cmd_sent, msg, timestamp, port) = GS_Controller.control.SendCommand(ip_address, base_port,
+                                                                                 self.instance_name, self.topic_name,
+                                                                                 self.subcommand_name, self.payload_values)
             if cmd_sent:
                 cmd_log_info = f"Command Sent: {timestamp}\n"
                 cmd_log_info += "IP: {}   ".format(ip_address)
@@ -386,7 +400,7 @@ class TlmWindow(QWidget):
         self.setGeometry(self.left, self.top, self.width, self.height)
 
         self.port_label = QLabel("Port: ")
-        self.port_entry = QLineEdit("5021")
+        self.port_entry = QLineEdit("1235")
         self.start_tlm_button = QPushButton("Start Listening")
         self.start_tlm_button.clicked.connect(self.StartListening)
 

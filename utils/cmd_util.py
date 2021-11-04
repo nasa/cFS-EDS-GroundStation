@@ -44,7 +44,7 @@ def set_pubsub(intf_db, instance_id, topic_id, cmd):
     cmd - EDS object of the command structure
     '''
     intf_db.SetPubSub(instance_id, topic_id, cmd)
-    cmd.Hdr.SeqFlag = 3             # SeqFlag is hardcoded to 3 in cmdUtil.c
+    cmd.CCSDS.SeqFlag = 3             # SeqFlag is hardcoded to 3 in cmdUtil.c
 
 
 def hex_string(string, bytes_per_line):
@@ -334,13 +334,17 @@ def main():
 
     cmd_packed = EdsLib.PackedObject(cmd)
 
-    port = 1234 + instance_id
-
     while True:
         dest = input("\nEnter destination IP (Press Enter for 127.0.0.1) > ")
         if dest == '':
             dest = '127.0.0.1'
 
+        base_port = input("\nEnter base UDP port (Press Enter for 1234) > ")
+        if base_port == '':
+            base_port = 1234
+        
+        port = base_port + instance_id - 1
+        
         try:
             opened_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             opened_socket.sendto(bytes(cmd_packed), (dest, port))

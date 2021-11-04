@@ -111,14 +111,14 @@ def main(argv):
     try:
         opts, args = getopt.getopt(argv, "hp:", ["port="])
     except getopt.GetoptError:
-        print("tlm_decode.py -p <port number=5021>")
+        print("tlm_decode.py -p <port number=1235>")
         sys.exit(2)
 
-    udp_recv_port = 5021
+    udp_recv_port = 1235
     mission = "@CFS_EDS_GS_MISSION_NAME@".lower()
     for opt, arg in opts:
         if opt == '-h':
-            print("tlm_decode.py -p <port number=5021>")
+            print("tlm_decode.py -p <port number=1235>")
             sys.exit()
         elif opt in ('-p', '--port'):
             udp_recv_port = int(arg)
@@ -147,7 +147,7 @@ def main(argv):
             if len(datagram) < 6:
                 continue
 
-            print(f"Telemetry Packet From: {host[0]}:UDP{host[1]}, {8*len(datagram)} bits :")
+            print(f"Telemetry Packet From: {host[0]}:UDP {host[1]}, {8*len(datagram)} bits :")
             print(hex_string(datagram.hex(), 16))
             eds_entry, eds_object = decode_message(mission, intf_db, datagram)
             display_entries(eds_db, eds_object, eds_entry.Name)
